@@ -2,15 +2,12 @@
 import cv2
 from matplotlib import cm
 import json
-
+import math
 
 ## configs
 numFish = 5
 videoSource = "data/ZebraFish-04-raw.webm"
 labelSource = "data/3DZeF20Lables/train/ZebraFish-04/gt/gt.txt"
-
-#  camTRefSource = "data/3DZeF20Lables/train/ZebraFish-04/camT_references.json"
-
 
 def getFishColors(numFish): 
     cmap = cm.get_cmap('viridis', numFish)
@@ -43,25 +40,45 @@ def readLables(labelSource):
     camT.append((1962, 151))
     camT.append((1969, 1460))
     camT.append((626, 1431))
-    #  camT.append((680.0, 135.0))
-    #  camT.append((1962.0, 151.0))
-    #  camT.append((1969.0, 1460.0))
-    #  camT.append((626.0, 1431.0))
-    #  file = open(camTRefSource)
-    #  data = json.load(file, cls=JSONWithCommentsDecoder)
-    #  print(data)
-
-    #  for i in range(4): 
-    #      coor = (data[i]["camera"]["x"], data[i]["camera"]["x"])
-    #      camT.append(coor)
-    #  file.close()
 
     return lines, camT
 
+def createTiles(camT, originalImg, M=2, N=2): 
+    # fix corners
+    minX, maxX = math.inf, -math.inf
+    minY, maxY = math.inf, -math.inf
+    for corner in camT: 
+        minX = min(minX, corner[0])
+        maxX = max(maxX, corner[0])
+        minY = min(minY, corner[1])
+        maxY = max(maxY, corner[1])
+
+    #  topLeft = (minX, minY)
+    #  bottomRight = (maxX, maxY)
+
+    xStep = (maxX - minX) // M
+    yStep = (maxY - minY) // N
+
+    tiles = []
+    tileInfo = []
+    for i in range(minX, maxX - xStep, xStep):
+        for j in range(minY, maxY - yStep, yStep):
+            tiles.append(originalImg[j:j+yStep,i:i+xStep,:])
+            # [(yMin, xMin), (yMax, xMax)]
+            tileInfo.append([(j, i), (j + yStep, i + xStep)])
+
+    assert(len(tiles) == M * N)
+    return tiles, tileInfo
 
 
 capture, totalFrames, height, width = readVideo(videoSource)
 lines, camT = readLables(labelSource)
+
+for i, corner in enumerate(camT): 
+    newX = (corner[0] + width) // 2
+    newY = (corner[1]) // 2
+    camT[i] = (newX, newY)
+
 
 frameNr = 0
 
@@ -77,7 +94,6 @@ print("total frames: ", totalFrames)
 print("height: ", height)
 print("width: ", width)
 
-# grab 
 
 
 
@@ -86,38 +102,30 @@ while True:
     if success:
         #  cv2.imwrite("frames/frame" + str(frameNr) + ".png", frame)
 
-
-        #  data_tmp = lines[frameNr * numFish].split(",")
-        #  t_left = int(data_tmp[7]) // 2
-        #  t_top = int(data_tmp[8]) // 2
-        #  t_width = int(data_tmp[9])
-        #  t_height = int(data_tmp[10])
-        #  upper_left = (668.0, 84.0)
-
         for dot in camT: 
-            print(dot)
+            #  print(dot)
             dot = (dot[0] // 2 + width // 2, dot[1] // 2)
             drawCircle(frame, center=dot, radius=10, thickness=3, color=(0, 0, 0))
+        tiles, tileInfo = createTiles(camT, frame, M=2, N=2)
+        cv2.imshow("tiles[0]", tiles[0])
 
+
+        # check if fish in tile
+        tileFishCount = [0] * numFish
         for i in range(numFish): 
 
-            # draw history
-            for pastFrame in history[i]: 
-                print(pastFrame)
-                drawCircle(frame, pastFrame[0], fishColors[i], 1, 2)
-                drawCircle(frame, pastFrame[1], fishColors[i], 1, 2)
-
-
             annotatedData = lines[frameNr * numFish + i].split(",")
-            x_front, y_front = int(annotatedData[12]) // 2, int(annotatedData[13]) // 2
             x_top, y_top = int(annotatedData[5]) // 2 + width // 2, int(annotatedData[6]) // 2
 
-            front_coor = (x_front, y_front)
             top_coor = (x_top, y_top)
 
-            cv2.circle(frame, center=front_coor, radius=8, color=fishColors[i], thickness=3)
             cv2.circle(frame, center=top_coor, radius=8, color=fishColors[i], thickness=3)
-            history[i].append([front_coor, top_coor])
+
+            for tileId, aTile in enumerate(tileInfo): 
+                if aTile[0][0] <= y_top and aTile[1][0] >= y_top and aTile[0][1] <= x_top and aTile[1][1] >= x_top: 
+                    tileFishCount[tileId] += 1
+
+        print(tileFishCount)
 
         cv2.imshow("Video", frame)
         #  videoWrite.write(frame)
@@ -125,6 +133,9 @@ while True:
         if cv2.waitKey(20) & 0xFF == ord('q'):
             break
         frameNr += 1
+
+    if frameNr == totalFrames: 
+        break
 
 #  capture.release()
 #  videoWrite.release()

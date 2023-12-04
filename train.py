@@ -18,7 +18,7 @@ class CNN(nn.Module):
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1)
         self.pool = nn.MaxPool2d(2, 2)
 
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1)
         #  self.fc1 = nn.Linear(41 * 83 * 64 * 2, 128) # two
         #  self.fc1 = nn.Linear(193600, 128) # three by three
         self.fc1 = nn.Linear(4096, 128) # three by three
@@ -56,7 +56,8 @@ def load_dataset(filename):
     with np.load(dataset_npz) as data:
         #  print(data)
         #  print(data.files)
-        dataset = data["dataset"]
+        #  dataset = data["dataset"]
+        dataset = data["removed_backgrounds"]
         labels = data["labels"]
 
     return dataset, labels
@@ -75,12 +76,13 @@ def resize_images(images, shape):
         new_images.append(cv2.resize(img, dsize=shape, interpolation=cv2.INTER_CUBIC))
     return new_images
 
-dataset_npz = "export/two-by-two-no-downscale.npz"
+dataset_npz = "export/ZebraFish-03/3-by-3.npz"
 images, labels = load_dataset(dataset_npz)
 
 # processing
-print(images.shape)
+print("image shape: ", images[0].shape)
 images = resize_images(images, (32, 32))
+print("resized to: ", images[0].shape)
 images = np.float32(images) / 255.0
 labels = binary_labels(labels)
 classes = ("With Fish Head", "No Fish Head")
@@ -88,11 +90,13 @@ classes = ("With Fish Head", "No Fish Head")
 images = torch.from_numpy(images)
 labels = torch.from_numpy(labels)
 
-images = images.permute(0, 3, 1, 2)[:1000]
+images = images.permute(0, 3, 1, 2)
 dataset = CustomDataset(images, labels)
 batch_size = 32
 
-train_set, test_set = torch.utils.data.random_split(dataset, [800, 200])
+train_length = int(len(images) * 0.8)
+test_length = len(images) - train_length
+train_set, test_set = torch.utils.data.random_split(dataset, [train_length, test_length])
 train_data_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
 test_data_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
 

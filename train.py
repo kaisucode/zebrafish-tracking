@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 import math
 import numpy as np
-import cv2
+#  import cv2
 
 import torch
 import torchvision
@@ -70,19 +70,10 @@ def binary_labels(labels):
             labels[i] = 1
     return labels
 
-def resize_images(images, shape): 
-    new_images = []
-    for img in images: 
-        new_images.append(cv2.resize(img, dsize=shape, interpolation=cv2.INTER_CUBIC))
-    return new_images
-
 dataset_npz = "export/ZebraFish-03/3-by-3.npz"
 images, labels = load_dataset(dataset_npz)
 
 # processing
-print("image shape: ", images[0].shape)
-images = resize_images(images, (32, 32))
-print("resized to: ", images[0].shape)
 images = np.float32(images) / 255.0
 labels = binary_labels(labels)
 classes = ("With Fish Head", "No Fish Head")

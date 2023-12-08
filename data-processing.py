@@ -7,13 +7,23 @@ import math
 import numpy as np
 
 ## configs
-M = 3
-N = 3
+M = 2
+N = 2
 numFish = 2
 sourceId = "ZebraFish-03"
 videoSource = "data/{}-raw.webm".format(sourceId)
 labelSource = "data/3DZeF20Lables/train/{}/gt/gt.txt".format(sourceId)
 exportFilename = "export/{}/{}-by-{}".format(sourceId, M, N)
+
+def resize_image(image, shape=(32, 32)): 
+    return cv2.resize(image, dsize=shape, interpolation=cv2.INTER_CUBIC)
+
+def resize_images(images, shape): 
+    new_images = []
+    for img in images: 
+        new_images.append(cv2.resize(img, dsize=shape, interpolation=cv2.INTER_CUBIC))
+    return new_images
+
 
 def getFishColors(numFish): 
     cmap = cm.get_cmap('viridis', numFish)
@@ -164,9 +174,11 @@ for frameNr, frame in enumerate(original_imgs):
     if (frameNr < len(prev_imgs)): 
         prev_tiles, _, _ = createTiles(camT, prev_imgs[frameNr], M=M, N=N)
         for aTile in prev_tiles: 
-            prev_frames_export.append(aTile)
+            prev_frames_export.append(resize_image(aTile))
 
     tiles, tileInfo, cropped = createTiles(camT, frame, M=M, N=N)
+    if (frameNr == 0): 
+        print("tile shape: ", tiles[0].shape)
 
     # check if fish in tile
     tileFishCount = [0] * (M * N)
@@ -195,10 +207,11 @@ for frameNr, frame in enumerate(original_imgs):
     #      break
 
     for tileId, aTile in enumerate(tiles): 
-        dataset.append(aTile)
+        dataset.append(resize_image(aTile))
         labels.append(tileFishCount[tileId])
     for aTile in avg_tiles: 
-        removed_backgrounds.append(aTile)
+        removed_backgrounds.append(resize_image(aTile))
+
 
 prev_frames_export = np.asarray(prev_frames_export)
 dataset = np.asarray(dataset)

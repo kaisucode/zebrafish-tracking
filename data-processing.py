@@ -7,8 +7,8 @@ import math
 import numpy as np
 
 ## configs
-M = 2
-N = 2
+M = 6
+N = 6
 numFish = 2
 sourceId = "ZebraFish-03"
 videoSource = "data/{}-raw.webm".format(sourceId)

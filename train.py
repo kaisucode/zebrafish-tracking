@@ -10,6 +10,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
+from sklearn.metrics import precision_score, recall_score, confusion_matrix
+
+seed = 2023
+torch.manual_seed(seed)
+np.random.seed(seed)
 
 class CNN(nn.Module):
     def __init__(self):
@@ -57,7 +62,7 @@ def load_dataset(filename):
         #  print(data)
         #  print(data.files)
         #  dataset = data["dataset"]
-        dataset = data["removed_backgrounds"]
+        dataset = data["dataset"]
         labels = data["labels"]
 
     return dataset, labels
@@ -70,11 +75,11 @@ def binary_labels(labels):
             labels[i] = 1
     return labels
 
-dataset_npz = "export/ZebraFish-03/3-by-3.npz"
+dataset_npz = "export/ZebraFish-03/6-by-6.npz"
 images, labels = load_dataset(dataset_npz)
 
 # processing
-images = np.float32(images) / 255.0
+images = np.float32(images)
 labels = binary_labels(labels)
 classes = ("With Fish Head", "No Fish Head")
 
@@ -118,6 +123,10 @@ for epoch in range(NUM_EPOCHS):
 
 num_correct = 0
 num_samples = 0
+
+all_predictions = []
+all_labels = []
+
 cnn_model.eval()
 with torch.no_grad(): 
     for x, y in test_data_loader: 
@@ -125,6 +134,32 @@ with torch.no_grad():
         _, predictions = scores.max(1)
         num_correct += (predictions == y).sum()
         num_samples += predictions.size(0)
+
+        all_predictions.extend(predictions.cpu().numpy())
+        all_labels.extend(y.cpu().numpy())
+
+    precision = precision_score(all_labels, all_predictions)
+    recall = recall_score(all_labels, all_predictions)
+
     print(f'Got {num_correct} / {num_samples} with accuracy {float(num_correct)/float(num_samples)*100:.2f}')
+    print(f'Precision: {precision:.2f}, Recall: {recall:.2f}')
+
+# Calculate confusion matrix
+conf_matrix = confusion_matrix(all_labels, all_predictions)
+
+# Display confusion matrix using matplotlib
+plt.figure(figsize=(8, 6))
+plt.imshow(conf_matrix, interpolation='nearest', cmap=plt.cm.Blues)
+plt.title('Confusion Matrix')
+plt.colorbar()
+
+classes = ["With Fish Head", "No Fish Head"]
+tick_marks = np.arange(len(classes))
+plt.xticks(tick_marks, classes)
+plt.yticks(tick_marks, classes)
+
+plt.xlabel('Predicted Labels')
+plt.ylabel('True Labels')
+plt.show()
 
 

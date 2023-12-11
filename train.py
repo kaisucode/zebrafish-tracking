@@ -9,6 +9,8 @@ import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import seaborn as sns
+
 from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import precision_score, recall_score, confusion_matrix
 
@@ -62,7 +64,7 @@ def load_dataset(filename):
         #  print(data)
         #  print(data.files)
         #  dataset = data["dataset"]
-        dataset = data["dataset"]
+        dataset = data["removed_backgrounds"]
         labels = data["labels"]
 
     return dataset, labels
@@ -75,7 +77,7 @@ def binary_labels(labels):
             labels[i] = 1
     return labels
 
-dataset_npz = "export/ZebraFish-03/6-by-6.npz"
+dataset_npz = "export/ZebraFish-03/5-by-5.npz"
 images, labels = load_dataset(dataset_npz)
 
 # processing
@@ -147,19 +149,13 @@ with torch.no_grad():
 # Calculate confusion matrix
 conf_matrix = confusion_matrix(all_labels, all_predictions)
 
-# Display confusion matrix using matplotlib
-plt.figure(figsize=(8, 6))
-plt.imshow(conf_matrix, interpolation='nearest', cmap=plt.cm.Blues)
-plt.title('Confusion Matrix')
-plt.colorbar()
+ax= plt.subplot()
+sns.heatmap(conf_matrix, annot=True, fmt='g', ax=ax)  #annot=True to annotate cells, ftm='g' to disable scientific notation
 
-classes = ["With Fish Head", "No Fish Head"]
-tick_marks = np.arange(len(classes))
-plt.xticks(tick_marks, classes)
-plt.yticks(tick_marks, classes)
-
-plt.xlabel('Predicted Labels')
-plt.ylabel('True Labels')
+# labels, title and ticks
+ax.set_xlabel('Predicted labels');ax.set_ylabel('True labels') 
+ax.set_title('Confusion Matrix') 
+ax.xaxis.set_ticklabels(['No Fish Head', 'With Fish Head'])
+ax.yaxis.set_ticklabels(['No Fish Head', 'With Fish Head'])
 plt.show()
-
 
